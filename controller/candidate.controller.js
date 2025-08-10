@@ -80,8 +80,77 @@ const deleteCandidate = async (req, res) => {
   }
 }
 
+const voteCandidate = async (req, res) => {
+  const candidateId = req.params.id;
+  const userId = req.user.id;
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+    if (user.isvoted) {
+      return res.status(403).json({
+        message: "You have already voted"
+      });
+    }
+    if (user.role == 'admin') {
+      return res.status(403).json({
+        message: "Admins cannot vote"
+      });
+    }
+    const candidate = await Candidate.findById(candidateId);
+    if (!candidate) {
+      return res.status(404).json({
+        message: "Candidate not found"
+      });
+    }
+    candidate.votes.push({ user: userId });
+    candidate.votecount += 1;
+    await candidate.save();
+
+    user.isvoted = true;
+    await user.save();
+    res.status(200).json({
+      message: "Vote cast successfully"
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: "Internal Server Error"
+    });
+  }
+}
+
+const voteCount = async (req, res) => {
+  try {
+
+    const candidate = await Candidate.find().sort({ voteCount: 'desc' });
+
+    const voteRecord = candidate.map((data) => {
+      return {
+        party: data.party,
+        count: data.votecount
+      }
+    })
+
+    res.status(200).json({
+      message: "Vote count retrieved successfully",
+      voteCount: voteRecord
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: "Internal Server Error"
+    });
+  }
+}
+
 module.exports = {
   createCandidate,
   updateCandidate,
-  deleteCandidate
+  deleteCandidate,
+  voteCandidate,
+  voteCount
 };
